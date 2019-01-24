@@ -49,17 +49,16 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private String stockcName;
     private StringBuilder stockData;
     private NotificationCompat.Builder nb;
-    private boolean is_finished;
-    private boolean is_stop_clicked;
     private NotificationManager notiManager;
     private Notification notification;
+    private boolean monitor_status;
+    private boolean is_monitor_button_clicked;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        is_finished = false;
-        is_stop_clicked = false;
+        is_monitor_button_clicked = false;
         notiManager =   (NotificationManager)getSystemService(NOTIFICATION_SERVICE);
 /*        notification = new NotificationCompat.Builder(this,"default")
                 .setSmallIcon(R.drawable.icon)
@@ -126,6 +125,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
+
+    //private boolean isTrueOrfalse = false;
     @Override
     public void onClick(View v) {
         Log.d("onClick", "into onClick");
@@ -137,18 +138,101 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             stockCode = "sz" + stockCode;
         }
         Log.d("stockCode1", stockCode);
+        if (is_monitor_button_clicked){
+            button.setText("stop");
+            monitor_status = true;
+            is_monitor_button_clicked = !is_monitor_button_clicked;
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        while (monitor_status) {
+                            Log.d("while", "into while");
+                            Retrofit retrofit = new Retrofit.Builder()
+                                    .baseUrl("http://web.sqt.gtimg.cn/")
+                                    .addCallAdapterFactory(RxJavaCallAdapterFactory.create())
+                                    .build();
+                            final ChaoDuanRequest request = retrofit.create(ChaoDuanRequest.class);
+                            Call<ResponseBody> call = request.getStockData(stockCode, RandomNumber.getRandomNumber(16));
 
-        is_stop_clicked = false;
-        button.setText("stop!");
-        button.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                is_stop_clicked = true;
-                button.setText("开始监控");
-                button.setOnClickListener(MainActivity.this);
-            }
-        });
-   //     while (!is_finished && !is_stop_clicked) {
+                            call.enqueue(new Callback<ResponseBody>() {
+                                //请求成功时回调
+                                @Override
+                                public void onResponse(Call<ResponseBody>  call, Response<ResponseBody> response) {
+                                    //请求处理,输出结果
+                                    String res = null;
+                                    try {
+                                        res = response.body().string();
+                                    } catch (IOException e) {
+                                        Log.e("error","onResponse",e);
+                                    }
+                                    Log.d("onResponse", "res:" + res);
+                                    String[] plate_date_strikes = res.split("~");
+                                    stockcName = plate_date_strikes[1];
+                                    Log.d("onResponse", "stockcName:" + stockcName);
+                                    String plate_date_strike_trades_str = "";
+                                    for (String plate_date_strike : plate_date_strikes) {
+                                        if (plate_date_strike.contains("|")) {
+                                            plate_date_strike_trades_str = plate_date_strike;
+                                            break;
+                                        }
+                                    }
+                                    Log.d("onResponse", "plate_date_strike_trades_str:" + plate_date_strike_trades_str);
+                                    plate_date_strike_trades_str.replaceAll("S", "卖出");
+                                    plate_date_strike_trades_str.replaceAll("B", "买入");
+                                    String[] plate_date_strike_trades_arr = plate_date_strike_trades_str.split("|");
+                                    stockData = new StringBuilder();
+                                    ArrayList<BigDecimal> buyTrades = new ArrayList<BigDecimal>();
+                                    for (String plate_date_strike_trades_data : plate_date_strike_trades_arr) {
+                                        stockData = stockData.append(plate_date_strike_trades_data.split("/")[0]);
+                                        stockData = stockData.append(plate_date_strike_trades_data.split("/")[3]);
+                                        String tradeNum = plate_date_strike_trades_data.split("/")[4];
+                                        BigDecimal bigDecimal = new BigDecimal(tradeNum);
+                                        BigDecimal bigDecimal_res = bigDecimal.divide(new BigDecimal(10000));
+                                        stockData = stockData.append(bigDecimal_res);
+                                        stockData = stockData.append("万元\r\n");
+                                        if (plate_date_strike_trades_data.contains("买入")) {
+                                            buyTrades.add(bigDecimal);
+                                        }
+                                    }
+                                    if (Collections.max(buyTrades).intValue() > 800000) {
+                                        Toast.makeText(MainActivity.this, stockcName + "动了", Toast.LENGTH_SHORT);
+                                        //tongzhi
+                                        notification = new NotificationCompat.Builder(MainActivity.this,"default")
+                                                .setSmallIcon(R.drawable.icon)
+                                                .setContentTitle(stockcName + "动了")
+                                                .setContentText(stockcName + "动了")
+                                                .setWhen(System.currentTimeMillis())
+                                                .build();
+                                        notiManager.notify(1,notification);
+                                        playSound(system, 2);
+                                        monitor_status = false;
+                                    }
+                                    textView.setText(stockData.toString());
+                                }
+
+                                //请求失败时候的回调
+                                @Override
+                                public void onFailure(Call call, Throwable throwable) {
+                                    Log.e("error", "连接失败");
+                                    Toast.makeText(MainActivity.this, "连接失败", Toast.LENGTH_SHORT);
+                                }
+                            });
+
+                            try {
+                                Thread.sleep(3000L);
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }
+                }).start();
+        }else {
+            button.setText("start");
+            monitor_status = false;
+            is_monitor_button_clicked = !is_monitor_button_clicked;
+        }
+
+   /*     while (monitor_status) {
             Log.d("while", "into while");
             Retrofit retrofit = new Retrofit.Builder()
                     .baseUrl("http://web.sqt.gtimg.cn/")
@@ -208,7 +292,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                                 .build();
                         notiManager.notify(1,notification);
                         playSound(system, 2);
-                        is_finished = true;
+                        monitor_status = false;
                     }
                     textView.setText(stockData.toString());
                 }
@@ -220,59 +304,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     Toast.makeText(MainActivity.this, "连接失败", Toast.LENGTH_SHORT);
                 }
             });
-/*
-            try {
-                Response response = call.execute();
-                String res = response.body().toString();
-                Log.d("onResponse", "res:" + res);
-                String[] plate_date_strikes = res.split("~");
-                stockcName = plate_date_strikes[1];
-                Log.d("onResponse", "stockcName:" + stockcName);
-                String plate_date_strike_trades_str = "";
-                for (String plate_date_strike : plate_date_strikes) {
-                    if (plate_date_strike.contains("|")) {
-                        plate_date_strike_trades_str = plate_date_strike;
-                        break;
-                    }
-                }
-                Log.d("onResponse", "plate_date_strike_trades_str:" + plate_date_strike_trades_str);
-                plate_date_strike_trades_str.replaceAll("S", "卖出");
-                plate_date_strike_trades_str.replaceAll("B", "买入");
-                String[] plate_date_strike_trades_arr = plate_date_strike_trades_str.split("|");
-                stockData = new StringBuilder();
-                ArrayList<BigDecimal> buyTrades = new ArrayList<BigDecimal>();
-                for (String plate_date_strike_trades_data : plate_date_strike_trades_arr) {
-                    stockData = stockData.append(plate_date_strike_trades_data.split("/")[0]);
-                    stockData = stockData.append(plate_date_strike_trades_data.split("/")[3]);
-                    String tradeNum = plate_date_strike_trades_data.split("/")[4];
-                    BigDecimal bigDecimal = new BigDecimal(tradeNum);
-                    BigDecimal bigDecimal_res = bigDecimal.divide(new BigDecimal(10000));
-                    stockData = stockData.append(bigDecimal_res);
-                    stockData = stockData.append("万元\r\n");
-                    if (plate_date_strike_trades_data.contains("买入")) {
-                        buyTrades.add(bigDecimal);
-                    }
-                }
 
-                if (Collections.max(buyTrades).intValue() > 800000) {
-                    Toast.makeText(MainActivity.this, stockcName + "动了", Toast.LENGTH_SHORT);
-                    //tongzhi
-                    playSound(system, 2);
-                    is_finished = true;
-                }
-                textView.setText(stockData.toString());
-
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-
-            */
             try {
                 Thread.sleep(3000L);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-        //}
+        }
+        */
 
     }
 
