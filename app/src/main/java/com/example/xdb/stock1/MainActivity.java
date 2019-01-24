@@ -138,7 +138,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             stockCode = "sz" + stockCode;
         }
         Log.d("stockCode1", stockCode);
-        if (is_monitor_button_clicked){
+        if (!is_monitor_button_clicked){
             button.setText("stop");
             monitor_status = true;
             is_monitor_button_clicked = !is_monitor_button_clicked;
@@ -165,10 +165,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                                     } catch (IOException e) {
                                         Log.e("error","onResponse",e);
                                     }
-                                    Log.d("onResponse", "res:" + res);
+                                    Log.d("res",  res);
                                     String[] plate_date_strikes = res.split("~");
                                     stockcName = plate_date_strikes[1];
-                                    Log.d("onResponse", "stockcName:" + stockcName);
+                                    Log.d("stockcName",  stockcName);
                                     String plate_date_strike_trades_str = "";
                                     for (String plate_date_strike : plate_date_strikes) {
                                         if (plate_date_strike.contains("|")) {
@@ -176,13 +176,19 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                                             break;
                                         }
                                     }
-                                    Log.d("onResponse", "plate_date_strike_trades_str:" + plate_date_strike_trades_str);
-                                    plate_date_strike_trades_str.replaceAll("S", "卖出");
-                                    plate_date_strike_trades_str.replaceAll("B", "买入");
-                                    String[] plate_date_strike_trades_arr = plate_date_strike_trades_str.split("|");
+                                    Log.d("plate_date_strike_trades_str", plate_date_strike_trades_str);
+                                    plate_date_strike_trades_str = plate_date_strike_trades_str.replaceAll("S", "卖出");
+                                    plate_date_strike_trades_str = plate_date_strike_trades_str.replaceAll("B", "买入");
+                                    Log.d("plate_date_strike_trades_str", plate_date_strike_trades_str);
+                                    String[] plate_date_strike_trades_arr = plate_date_strike_trades_str.split("\\|");
+                                    Log.d("plate_date_strike_trades_arr.length", String.valueOf(plate_date_strike_trades_arr.length));
+                                    for (String plate_date_strike_trades_data : plate_date_strike_trades_arr) {
+                                        Log.d("plate_date_strike_trades_data", plate_date_strike_trades_data);
+                                    }
                                     stockData = new StringBuilder();
                                     ArrayList<BigDecimal> buyTrades = new ArrayList<BigDecimal>();
                                     for (String plate_date_strike_trades_data : plate_date_strike_trades_arr) {
+                                        Log.d("plate_date_strike_trades_data",  plate_date_strike_trades_data);
                                         stockData = stockData.append(plate_date_strike_trades_data.split("/")[0]);
                                         stockData = stockData.append(plate_date_strike_trades_data.split("/")[3]);
                                         String tradeNum = plate_date_strike_trades_data.split("/")[4];
