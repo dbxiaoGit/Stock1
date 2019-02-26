@@ -1,8 +1,11 @@
 package com.example.xdb.stock1;
 
 import android.app.Notification;
+import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Context;
+import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.media.AudioManager;
 import android.media.SoundPool;
 import android.support.v4.app.NotificationCompat;
@@ -53,6 +56,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private Notification notification;
     private boolean monitor_status;
     private boolean is_monitor_button_clicked;
+    private NotificationChannel notificationChannel;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -60,6 +64,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         setContentView(R.layout.activity_main);
         is_monitor_button_clicked = false;
         notiManager =   (NotificationManager)getSystemService(NOTIFICATION_SERVICE);
+        //ChannelId为"001",ChannelName为"my_channel"
+        notificationChannel = new NotificationChannel("1",
+                "my_channel", NotificationManager.IMPORTANCE_HIGH);
+        notificationChannel.enableLights(true); //是否在桌面icon右上角展示小红点
+        notificationChannel.setLightColor(Color.GREEN); //小红点颜色
+        notificationChannel.setShowBadge(true); //是否在久按桌面图标时显示此渠道的通知
+        notiManager.createNotificationChannel(notificationChannel);
+
 /*        notification = new NotificationCompat.Builder(this,"default")
                 .setSmallIcon(R.drawable.icon)
                 .setContentTitle(stockcName + "动了")
@@ -201,16 +213,20 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                                         }
                                     }
                                     if (Collections.max(buyTrades).intValue() > 800000) {
-                                        Toast.makeText(MainActivity.this, stockcName + "动了", Toast.LENGTH_SHORT);
+                                        Log.d("tongzhi", "80万以上的买单出现了");
+                                        Toast.makeText(MainActivity.this, stockcName + "动了", Toast.LENGTH_SHORT).show();
                                         //tongzhi
-                                        notification = new NotificationCompat.Builder(MainActivity.this,"default")
+                                        notification = new NotificationCompat.Builder(MainActivity.this,"1")
                                                 .setSmallIcon(R.drawable.icon)
+                                                .setLargeIcon(BitmapFactory.decodeResource(getResources(),R.drawable.icon))
                                                 .setContentTitle(stockcName + "动了")
                                                 .setContentText(stockcName + "动了")
+                                                .setTicker(stockcName + "动了")
                                                 .setWhen(System.currentTimeMillis())
+                                                .setAutoCancel(true)
                                                 .build();
                                         notiManager.notify(1,notification);
-                                        playSound(system, 2);
+                                        playSound(system, 0);
                                         monitor_status = false;
                                     }
                                     textView.setText(stockData.toString());
